@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from config import get_settings, validate_settings
@@ -8,18 +9,18 @@ from google_sheet import GoogleSheetService, GoogleSheetsError
 from taager_api import TaagerAPIClient, TaagerAPIError
 from utils import format_execution_time
 
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
 
-def main() -> None:
-    """Run the Taager to Google Sheets synchronization process."""
+SYNC_INTERVAL = 60 * 60  # 60 minutes
+
+
+def sync_once(settings, country_config) -> None:
     start_time = time.perf_counter()
-    settings = get_settings()
-    validate_settings(settings)
-
-    country_config = get_country_config()
     country_code = country_config.code
-
-    print(f"Using sheet: {country_config.products_sheet}")
-    print(f"Spreadsheet: {settings.spreadsheet_name}")
 
     try:
         taager_client = TaagerAPIClient(settings, country_code=country_code)
@@ -32,12 +33,27 @@ def main() -> None:
         )
 
         elapsed = format_execution_time(time.perf_counter() - start_time)
-        print(f"[{country_code}] Products Added: {products_added}")
-        print(f"[{country_code}] Products Updated: {products_updated}")
-        print(f"[{country_code}] Execution Time: {elapsed}")
+        logger.info(
+            "[%s] Added=%d Updated=%d Time=%s",
+            country_code, products_added, products_updated, elapsed,
+        )
     except (TaagerAPIError, GoogleSheetsError, ValueError, FileNotFoundError) as exc:
-        print(f"[{country_code}] Synchronization failed: {exc}")
-        raise
+        logger.exception("[%s] Sync failed: %s", country_code, exc)
+
+
+def main() -> None:
+    """Run the Taager to Google Sheets synchronization process continuously."""
+    settings = get_settings()
+    validate_settings(settings)
+
+    country_config = get_country_config()
+    country_code = country_config.code
+
+    logger.info("Starting sync loop for %s (every %d seconds)", country_code, SYNC_INTERVAL)
+
+    while True:
+        sync_once(settings, country_config)
+        time.sleep(SYNC_INTERVAL)
 
 
 if __name__ == "__main__":

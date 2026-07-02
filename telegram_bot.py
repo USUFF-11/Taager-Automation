@@ -1,4 +1,6 @@
 import asyncio
+import json
+import os
 import gspread
 from google.oauth2.service_account import Credentials
 from telegram import (
@@ -10,7 +12,7 @@ from telegram import (
 # ==========================
 # TELEGRAM
 # ==========================
-BOT_TOKEN = "8660875238:AAENpbeufWVFyC2_pamg_eAN1ygd7KTSPSE"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8660875238:AAENpbeufWVFyC2_pamg_eAN1ygd7KTSPSE")
 CHANNEL_ID = "@taagerstore"
 
 # ==========================
@@ -21,10 +23,17 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-creds = Credentials.from_service_account_file(
-    "credentials.json",
-    scopes=SCOPES,
-)
+creds_json = os.getenv("GOOGLE_CREDENTIALS")
+if creds_json:
+    creds = Credentials.from_service_account_info(
+        json.loads(creds_json),
+        scopes=SCOPES,
+    )
+else:
+    creds = Credentials.from_service_account_file(
+        "credentials.json",
+        scopes=SCOPES,
+    )
 
 client = gspread.authorize(creds)
 

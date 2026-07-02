@@ -31,7 +31,7 @@ class OrderService:
     def get_product_by_id(self, product_id: str) -> Optional[Dict[str, Any]]:
         """Find a product in the Products sheet by Product ID."""
         worksheet = self._get_products_worksheet()
-        records = worksheet.get_all_records()
+        records = worksheet.get_all_records(expected_headers=self.settings.required_columns)
         for row in records:
             if str(row.get("Product ID", "")).strip() == str(product_id).strip():
                 return row

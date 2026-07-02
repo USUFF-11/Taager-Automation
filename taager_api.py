@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 import requests
 
 from config import Settings
+from countries import get_country_config
 
 
 class TaagerAPIError(Exception):
@@ -14,8 +15,9 @@ class TaagerAPIError(Exception):
 class TaagerAPIClient:
     """Client for fetching products from the Taager API with retries."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, country_code: str | None = None) -> None:
         self.settings = settings
+        self.country_config = get_country_config(country_code)
         self.session = requests.Session()
 
     def fetch_all_products(self) -> List[Dict[str, Any]]:
@@ -44,7 +46,7 @@ class TaagerAPIClient:
 
         headers = {
             "Authorization": f"Bearer {self.settings.bearer_token}",
-            "country": "EGY",
+            "country": self.country_config.taager_api_country_header,
             "platform": "web",
             "accept": "application/json",
         }

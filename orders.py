@@ -10,6 +10,7 @@ from google.oauth2.service_account import Credentials
 from gspread.exceptions import WorksheetNotFound
 
 from config import Settings
+from countries import get_country_config
 
 
 class GoogleSheetsError(Exception):
@@ -19,8 +20,9 @@ class GoogleSheetsError(Exception):
 class OrderService:
     """Service responsible for reading product data and saving orders to Google Sheets."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, country_code: str | None = None) -> None:
         self.settings = settings
+        self.country_config = get_country_config(country_code)
         self.client = None
         self.workbook = None
         self.products_worksheet = None
@@ -71,12 +73,24 @@ class OrderService:
                 worksheet.update_cell(row_index, published_at_index + 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 return
 
+    def _get_products_sheet_name(self) -> str:
+        env_override = self.settings.worksheet_name
+        if env_override:
+            return env_override
+        return self.country_config.products_sheet
+
+    def _get_orders_sheet_name(self) -> str:
+        env_override = self.settings.orders_worksheet_name
+        if env_override:
+            return env_override
+        return self.country_config.orders_sheet
+
     def _get_products_worksheet(self):
         if self.products_worksheet is not None:
             return self.products_worksheet
 
         workbook = self._get_workbook()
-        self.products_worksheet = workbook.worksheet(self.settings.worksheet_name)
+        self.products_worksheet = workbook.worksheet(self._get_products_sheet_name())
         return self.products_worksheet
 
     def _get_orders_worksheet(self):
@@ -84,11 +98,12 @@ class OrderService:
             return self.orders_worksheet
 
         workbook = self._get_workbook()
+        sheet_name = self._get_orders_sheet_name()
         try:
-            self.orders_worksheet = workbook.worksheet(self.settings.orders_worksheet_name)
+            self.orders_worksheet = workbook.worksheet(sheet_name)
         except WorksheetNotFound:
             self.orders_worksheet = workbook.add_worksheet(
-                title=self.settings.orders_worksheet_name,
+                title=sheet_name,
                 rows=1000,
                 cols=30,
             )

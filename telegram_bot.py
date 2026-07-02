@@ -7,6 +7,7 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 
 from config import get_settings, validate_settings
+from countries import get_country_config
 from orders import GoogleSheetsError, OrderService
 
 logging.basicConfig(
@@ -19,7 +20,7 @@ CHECK_INTERVAL = 5 * 60  # 5 minutes
 
 
 async def publish_next_product(
-    bot: Bot, order_service: OrderService, channel_id: str
+    bot: Bot, order_service: OrderService, channel_id: str, country_config
 ) -> bool:
     product = order_service.get_next_unpublished_product()
 
@@ -38,17 +39,19 @@ async def publish_next_product(
 
     logger.info("Publishing product: %s", product_id)
 
+    deep_link_suffix = f"{country_config.code}-{product_id}" if country_config.code != "EG" else product_id
+
     caption = f"""🛍 {name}
 
-💰 السعر: {price} جنيه
+💰 السعر: {price} {country_config.currency_symbol}
 
-🚚 الشحن يحسب حسب المحافظة"""
+{country_config.shipping_text}"""
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
                     "🛒 اطلب الآن",
-                    url=f"https://t.me/taager_products_bot?start={product_id}",
+                    url=f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}",
                 )
             ]
         ]
@@ -72,7 +75,11 @@ async def main() -> None:
     settings = get_settings()
     validate_settings(settings)
 
-    order_service = OrderService(settings)
+    country_config = get_country_config()
+    country_code = country_config.code
+    logger.info("Starting publisher for country: %s", country_code)
+
+    order_service = OrderService(settings, country_code=country_code)
     bot = Bot(settings.bot_token)
 
     logger.info(
@@ -82,7 +89,7 @@ async def main() -> None:
 
     while True:
         try:
-            await publish_next_product(bot, order_service, settings.channel_id)
+            await publish_next_product(bot, order_service, country_config.channel_id, country_config)
         except TelegramError:
             logger.exception("Telegram error during publish")
         except GoogleSheetsError:

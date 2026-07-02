@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 import logging
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from rapidfuzz import process
 from telegram._update import Update
@@ -16,91 +16,67 @@ from telegram.ext import (
 )
 
 from config import get_settings
+from countries import COUNTRY_CONFIGS, get_country_config, CountryConfig
 from orders import OrderService
 
 
 ASK_NAME, ASK_PHONE, ASK_PHONE2, ASK_PROVINCE, ASK_ADDRESS, ASK_QUANTITY, ASK_NOTES, ASK_FACEBOOK_PAGE, ASK_FACEBOOK_LINK = range(9)
 logger = logging.getLogger(__name__)
 
-EGYPTIAN_GOVERNORATES = [
-    "القاهرة",
-    "الإسكندرية",
-    "الجيزة",
-    "الدقهلية",
-    "البحر الأحمر",
-    "البحيرة",
-    "الفيوم",
-    "الغربية",
-    "الإسماعيلية",
-    "المنوفية",
-    "المنيا",
-    "القليوبية",
-    "الوادي الجديد",
-    "السويس",
-    "الاسماعيلية",
-    "اسيوط",
-    "بني سويف",
-    "بورسعيد",
-    "دمياط",
-    "الشرقية",
-    "جنوب سيناء",
-    "كفر الشيخ",
-    "مطروح",
-    "الأقصر",
-    "قنا",
-    "شمال سيناء",
-    "سوهاج",
-    "أسيوط",
-    "السويس",
-    "المنصورة",
-    "طنطا",
-    "6 أكتوبر",
-    "حلوان",
-    "العاشر من رمضان",
-    "العبور",
-    "الفيوم",
-    "الجيزة",
-]
-
 PROVINCE_MATCH_THRESHOLD = 80
+
+
+def _parse_country_and_product_id(raw: str) -> tuple[str, str]:
+    parts = raw.split("-", 1)
+    if len(parts) == 2 and parts[0].upper() in COUNTRY_CONFIGS:
+        return parts[0].upper(), parts[1]
+    return "EG", raw
+
+
+def _make_order_service(country_code: str) -> OrderService:
+    settings = get_settings()
+    return OrderService(settings, country_code=country_code)
 
 
 class OrderConversation:
     """Handles the interactive order-taking flow for Telegram users."""
 
-    def __init__(self, order_service: OrderService) -> None:
-        self.order_service = order_service
-
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start a new ordering conversation from a deep link or command."""
         logger.info("start handler received update")
         args = context.args or []
-        product_id = args[0] if args else None
+        raw_id = args[0] if args else None
 
         message = update.effective_message
         if message is None:
             logger.warning("start handler received an update without an effective message")
             return ConversationHandler.END
 
-        if not product_id:
+        if not raw_id:
             await message.reply_text(
                 "يرجى استخدام الرابط من القناة أو إرسال /start <ProductID> للبدء."
             )
             return ConversationHandler.END
 
-        product = self.order_service.get_product_by_id(str(product_id))
+        country_code, product_id = _parse_country_and_product_id(raw_id)
+        country_config = get_country_config(country_code)
+        order_service = _make_order_service(country_code)
+
+        product = order_service.get_product_by_id(str(product_id))
         if product is None:
             await message.reply_text("لم أتمكن من العثور على هذا المنتج، يرجى المحاولة لاحقاً.")
             return ConversationHandler.END
 
         context.user_data["product"] = product
         context.user_data["product_id"] = str(product_id)
+        context.user_data["country_code"] = country_code
+        context.user_data["order_service"] = order_service
         context.user_data["order_data"] = {}
         context.user_data["current_state"] = ASK_NAME
 
-        await self._send_product_summary(update, product)
+        await self._send_product_summary(update, product, country_config)
         await message.reply_text("أولاً، اكتب اسمك الكامل:")
-        logger.info("Started order flow for product_id=%s", product_id)
+        logger.info("Started order flow for product_id=%s country=%s", product_id, country_code)
         return ASK_NAME
 
     async def handle_name(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -162,7 +138,9 @@ class OrderConversation:
             await message.reply_text("يرجى إدخال المحافظة.")
             return ASK_PROVINCE
 
-        normalized_province = self._normalize_province(province)
+        country_code = context.user_data.get("country_code", "EG")
+        country_config = get_country_config(country_code)
+        normalized_province = self._normalize_province(province, country_config.provinces)
         if normalized_province is None:
             await message.reply_text("لم أتمكن من معرفة المحافظة، يرجى إعادة كتابتها.")
             return ASK_PROVINCE
@@ -245,6 +223,8 @@ class OrderConversation:
         order_data = context.user_data.get("order_data", {})
         product = context.user_data.get("product", {})
         product_id = context.user_data.get("product_id", "")
+        country_code = context.user_data.get("country_code", "EG")
+        country_config = get_country_config(country_code)
 
         record = {
             "Order ID": str(uuid.uuid4()),
@@ -260,14 +240,18 @@ class OrderConversation:
             "Notes": order_data.get("Notes", ""),
             "Facebook Page": order_data.get("Facebook Page", ""),
             "Facebook Link": order_data.get("Facebook Link", ""),
-            "Country": "EGY",
+            "Country": country_config.order_country_code,
             "Color": "",
             "Size": "",
             "Order Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Status": "New",
         }
 
-        self.order_service.save_order(record)
+        order_service = context.user_data.get("order_service")
+        if order_service is not None:
+            order_service.save_order(record)
+        else:
+            logger.error("No order_service found in user_data, cannot save order")
         await message.reply_text("✅ تم استلام طلبك بنجاح")
         context.user_data["current_state"] = ConversationHandler.END
         context.user_data.clear()
@@ -283,13 +267,13 @@ class OrderConversation:
         context.user_data.clear()
         return ConversationHandler.END
 
-    async def _send_product_summary(self, update: Update, product: Dict[str, Any]) -> None:
+    async def _send_product_summary(self, update: Update, product: Dict[str, Any], country_config: CountryConfig) -> None:
         """Send the product summary to the customer before collecting order details."""
         name = product.get("Name") or ""
         price = product.get("Selling Price") or product.get("Taager Price") or ""
         image = product.get("Image") or product.get("image")
 
-        caption = f"📦 {name}\n💰 السعر: {price}"
+        caption = f"📦 {name}\n💰 السعر: {price} {country_config.currency_symbol}"
         message = update.effective_message
         if message is None:
             logger.warning("_send_product_summary received an update without an effective message")
@@ -305,13 +289,13 @@ class OrderConversation:
         return "" if value is None else str(value).strip()
 
     @staticmethod
-    def _normalize_province(user_input: str) -> str | None:
-        """Match the user's province input to the closest Egyptian governorate."""
+    def _normalize_province(user_input: str, provinces: list[str]) -> str | None:
+        """Match the user's province input to the closest province in the list."""
         if not user_input:
             return None
 
         normalized_input = user_input.strip()
-        best_match = process.extractOne(normalized_input, EGYPTIAN_GOVERNORATES)
+        best_match = process.extractOne(normalized_input, provinces)
         if best_match is None:
             return None
 
@@ -327,9 +311,7 @@ class OrderConversation:
 
 def build_conversation_handler() -> ConversationHandler:
     """Create the bot's conversation handler for placing orders."""
-    settings = get_settings()
-    order_service = OrderService(settings)
-    conversation = OrderConversation(order_service)
+    conversation = OrderConversation()
 
     return ConversationHandler(
         entry_points=[CommandHandler("start", conversation.start)],

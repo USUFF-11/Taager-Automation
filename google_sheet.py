@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
+import os
 from typing import Dict, List, Tuple
 
 import gspread
 from google.oauth2.service_account import Credentials
+from gspread.exceptions import WorksheetNotFound
 
 from config import Settings
+from countries import get_country_config
 from utils import build_product_row
 
 
@@ -16,8 +20,9 @@ class GoogleSheetsError(Exception):
 class GoogleSheetService:
     """Service that synchronizes product data into a Google Sheet."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, sheet_name: str | None = None) -> None:
         self.settings = settings
+        self.sheet_name = sheet_name
         self.client = None
         self.worksheet = None
         self.existing_product_rows: Dict[str, int] = {}
@@ -28,14 +33,30 @@ class GoogleSheetService:
             return
 
         try:
-            credentials = Credentials.from_service_account_file(
-                self.settings.google_credentials_path,
-                scopes=self.settings.scopes,
-            )
+            creds_json = os.getenv("GOOGLE_CREDENTIALS")
+            if creds_json:
+                credentials = Credentials.from_service_account_info(
+                    json.loads(creds_json),
+                    scopes=self.settings.scopes,
+                )
+            else:
+                credentials = Credentials.from_service_account_file(
+                    self.settings.google_credentials_path,
+                    scopes=self.settings.scopes,
+                )
             self.client = gspread.authorize(credentials)
-            self.worksheet = self.client.open(self.settings.spreadsheet_name).worksheet(
-                self.settings.worksheet_name
-            )
+
+            sheet_name = self.sheet_name or self.settings.worksheet_name
+            if not sheet_name:
+                raise GoogleSheetsError("No worksheet name configured")
+            try:
+                self.worksheet = self.client.open(self.settings.spreadsheet_name).worksheet(
+                    sheet_name
+                )
+            except WorksheetNotFound:
+                self.worksheet = self.client.open(self.settings.spreadsheet_name).add_worksheet(
+                    title=sheet_name, rows=1000, cols=20
+                )
             self._ensure_headers()
             self._load_existing_products()
         except Exception as exc:  # pragma: no cover - defensive logging path

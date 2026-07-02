@@ -4,9 +4,8 @@ import logging
 import time
 
 import requests
-from telegram import Bot
 from telegram._update import Update
-from telegram.ext import Application, ContextTypes, Updater
+from telegram.ext import Application, ContextTypes
 
 from config import get_settings, validate_settings
 from conversation import build_conversation_handler
@@ -24,7 +23,6 @@ def main() -> None:
 
     token = settings.bot_token
 
-    # Forcefully close any existing polling connection
     requests.get(
         f"https://api.telegram.org/bot{token}/getUpdates?offset=-1&timeout=1",
         timeout=5,
@@ -33,19 +31,12 @@ def main() -> None:
 
     logger.info("Starting Telegram bot")
 
-    bot = Bot(token=token)
-    updater = Updater(bot=bot, update_queue=None)
-    updater.dispatcher.add_handler(build_conversation_handler())
-    updater.start_polling(
+    app = Application.builder().token(token).build()
+    app.add_handler(build_conversation_handler())
+    app.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
     )
-    logger.info("Bot is running")
-    updater.idle()
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":

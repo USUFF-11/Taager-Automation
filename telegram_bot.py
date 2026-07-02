@@ -57,13 +57,26 @@ async def publish_next_product(
         ]
     )
 
-    await bot.send_photo(
-        chat_id=channel_id,
-        photo=image,
-        caption=caption,
-        parse_mode="HTML",
-        reply_markup=keyboard,
-    )
+    try:
+        await bot.send_photo(
+            chat_id=channel_id,
+            photo=image,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+    except Exception as e:
+        logger.warning("Photo failed for product %s, trying text-only: %s", product_id, e)
+        try:
+            await bot.send_message(
+                chat_id=channel_id,
+                text=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+        except Exception as e2:
+            logger.warning("Text-only also failed for product %s: %s", product_id, e2)
+            return False
 
     logger.info("Message sent for product %s", product_id)
     order_service.mark_product_published(product_id)

@@ -64,8 +64,9 @@ def validate_settings(settings: Settings) -> None:
     if not settings.bot_token:
         raise ValueError("BOT_TOKEN is missing. Set it in the .env file.")
 
-    credentials_path = Path(settings.google_credentials_path)
-    if not credentials_path.exists():
-        raise FileNotFoundError(
-            f"Google credentials file was not found: {credentials_path}"
-        )
+    if not os.getenv("GOOGLE_CREDENTIALS"):
+        credentials_path = Path(settings.google_credentials_path)
+        if not credentials_path.exists():
+            raise FileNotFoundError(
+                f"Google credentials file was not found: {credentials_path}"
+            )

@@ -1,90 +1,97 @@
+from __future__ import annotations
+
 import asyncio
-import json
-import os
-import gspread
-from google.oauth2.service_account import Credentials
-from telegram import (
-    Bot,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
+import logging
+
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import TelegramError
+
+from config import get_settings, validate_settings
+from orders import GoogleSheetsError, OrderService
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
 )
+logger = logging.getLogger(__name__)
 
-# ==========================
-# TELEGRAM
-# ==========================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8660875238:AAENpbeufWVFyC2_pamg_eAN1ygd7KTSPSE")
-CHANNEL_ID = "@taagerstore"
+CHECK_INTERVAL = 5 * 60  # 5 minutes
 
-# ==========================
-# GOOGLE SHEETS
-# ==========================
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
 
-creds_json = os.getenv("GOOGLE_CREDENTIALS")
-if creds_json:
-    creds = Credentials.from_service_account_info(
-        json.loads(creds_json),
-        scopes=SCOPES,
-    )
-else:
-    creds = Credentials.from_service_account_file(
-        "credentials.json",
-        scopes=SCOPES,
-    )
+async def publish_next_product(
+    bot: Bot, order_service: OrderService, channel_id: str
+) -> bool:
+    product = order_service.get_next_unpublished_product()
 
-client = gspread.authorize(creds)
+    if product is None:
+        logger.info("No unpublished products found")
+        return False
 
-sheet = client.open("Taager").worksheet("Products")
+    product_id = str(product.get("Product ID", "")).strip()
+    name = str(product.get("Name", "")).strip()
+    price = str(product.get("Selling Price", "")).strip()
+    image = str(product.get("Image", "")).strip()
 
-# أول منتج
-product = sheet.get_all_records()[0]
+    if not product_id:
+        logger.warning("Found a product without a Product ID; skipping")
+        return False
 
-name = product["Name"]
-price = product["Selling Price"]
-image = product["Image"]
+    logger.info("Publishing product: %s", product_id)
 
-caption = f"""🛍 **{name}**
+    caption = f"""🛍 {name}
 
 💰 السعر: {price} جنيه
 
-🚚 الشحن يحسب حسب المحافظة
-"""
-
-# ==========================
-# BUTTONS
-# ==========================
-
-keyboard = InlineKeyboardMarkup(
-    [
+🚚 الشحن يحسب حسب المحافظة"""
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                "🛒 اطلب الآن",
-                url=f"https://t.me/taager_products_bot?start={product['Product ID']}",
-            )
-        ],
-        
-    ]
-)
-
-# ==========================
-# SEND
-# ==========================
-
-async def main():
-    bot = Bot(BOT_TOKEN)
+            [
+                InlineKeyboardButton(
+                    "🛒 اطلب الآن",
+                    url=f"https://t.me/taager_products_bot?start={product_id}",
+                )
+            ]
+        ]
+    )
 
     await bot.send_photo(
-        chat_id=CHANNEL_ID,
+        chat_id=channel_id,
         photo=image,
         caption=caption,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=keyboard,
     )
 
-    print("Done ✅")
+    logger.info("Message sent for product %s", product_id)
+    order_service.mark_product_published(product_id)
+    logger.info("Published At updated for product %s", product_id)
+    return True
 
 
-asyncio.run(main())
+async def main() -> None:
+    settings = get_settings()
+    validate_settings(settings)
+
+    order_service = OrderService(settings)
+    bot = Bot(settings.bot_token)
+
+    logger.info(
+        "Starting publisher loop (checking every %d seconds)",
+        CHECK_INTERVAL,
+    )
+
+    while True:
+        try:
+            await publish_next_product(bot, order_service, settings.channel_id)
+        except TelegramError:
+            logger.exception("Telegram error during publish")
+        except GoogleSheetsError:
+            logger.exception("Google Sheets error during publish")
+        except Exception:
+            logger.exception("Unexpected error during publish")
+
+        await asyncio.sleep(CHECK_INTERVAL)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -99,10 +101,17 @@ class OrderService:
             return self.workbook
 
         try:
-            credentials = Credentials.from_service_account_file(
-                self.settings.google_credentials_path,
-                scopes=self.settings.scopes,
-            )
+            creds_json = os.getenv("GOOGLE_CREDENTIALS")
+            if creds_json:
+                credentials = Credentials.from_service_account_info(
+                    json.loads(creds_json),
+                    scopes=self.settings.scopes,
+                )
+            else:
+                credentials = Credentials.from_service_account_file(
+                    self.settings.google_credentials_path,
+                    scopes=self.settings.scopes,
+                )
             self.client = gspread.authorize(credentials)
             self.workbook = self.client.open(self.settings.spreadsheet_name)
         except Exception as exc:  # pragma: no cover - defensive logging path

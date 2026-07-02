@@ -25,6 +25,7 @@ def main() -> None:
     app.add_handler(build_conversation_handler())
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
+        concurrent_updates=False,
     )
 
 

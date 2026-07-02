@@ -24,12 +24,12 @@ def main() -> None:
 
     token = settings.bot_token
 
-    # Forcefully close any existing connection
+    # Forcefully close any existing polling connection
     requests.get(
-        f"https://api.telegram.org/bot{token}/getUpdates?offset=-1&timeout=1&allowed_updates=[]",
+        f"https://api.telegram.org/bot{token}/getUpdates?offset=-1&timeout=1",
         timeout=5,
     )
-    time.sleep(2)
+    time.sleep(3)
 
     logger.info("Starting Telegram bot")
 

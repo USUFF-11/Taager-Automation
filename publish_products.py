@@ -52,7 +52,7 @@ async def main() -> None:
             [
                 InlineKeyboardButton(
                     "🛒 اطلب الآن",
-                    url=f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}{product_id}",
+                    url=f"tg://resolve?domain={country_config.bot_username}&start={deep_link_suffix}{product_id}",
                 )
             ]
         ]

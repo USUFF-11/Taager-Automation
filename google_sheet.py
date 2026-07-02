@@ -55,7 +55,7 @@ class GoogleSheetService:
                 )
             except WorksheetNotFound:
                 self.worksheet = self.client.open(self.settings.spreadsheet_name).add_worksheet(
-                    title=sheet_name, rows=1000, cols=20
+                    title=sheet_name, rows=1, cols=13
                 )
             self._ensure_headers()
             self._load_existing_products()
@@ -96,7 +96,12 @@ class GoogleSheetService:
                 self.worksheet.batch_update(update_requests, value_input_option="RAW")
 
             if rows_to_append:
-                self.worksheet.append_rows(rows_to_append, value_input_option="RAW")
+                last_row = 1 + len(rows_to_append)
+                self.worksheet.update(
+                    f"A2:K{last_row}",
+                    rows_to_append,
+                    value_input_option="RAW",
+                )
         except Exception as exc:
             raise GoogleSheetsError(f"Unable to write to Google Sheets: {exc}") from exc
 

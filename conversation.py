@@ -43,13 +43,7 @@ class OrderConversation:
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start a new ordering conversation from a deep link or command."""
-        last_id = context.user_data.get("_last_start_update_id")
-        if last_id == update.update_id:
-            logger.info("ignoring duplicate start update_id=%s", update.update_id)
-            return context.user_data.get("current_state", ConversationHandler.END)
-        context.user_data["_last_start_update_id"] = update.update_id
-
-        logger.info("start handler received update_id=%s", update.update_id)
+        logger.info("start handler received update")
         args = context.args or []
         raw_id = args[0] if args else None
 
@@ -58,13 +52,11 @@ class OrderConversation:
             logger.warning("start handler received an update without an effective message")
             return ConversationHandler.END
 
+        logger.info("start args=%s message_text=%s", args, message.text if message else None)
+
         if not raw_id:
             await message.reply_text(
-                "مرحباً بك في متجر تاجر! 🛍️\n\n"
-                "لطلب منتج، يرجى الذهاب إلى القناة @taagerstore\n"
-                "واختيار المنتج، ثم الضغط على زر 🛒 اطلب الآن.\n\n"
-                "أو يمكنك إرسال رقم المنتج مع /start\n"
-                "مثال: /start 12345"
+                "يرجى استخدام الرابط من القناة أو إرسال /start <ProductID> للبدء."
             )
             return ConversationHandler.END
 
@@ -337,5 +329,5 @@ def build_conversation_handler() -> ConversationHandler:
             ASK_FACEBOOK_LINK: [MessageHandler(filters.TEXT & ~filters.COMMAND, conversation.handle_facebook_link)],
         },
         fallbacks=[CommandHandler("cancel", conversation.cancel)],
-        allow_reentry=False,
+        allow_reentry=True,
     )

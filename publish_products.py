@@ -23,9 +23,6 @@ async def main() -> None:
     country_code = country_config.code
     order_service = OrderService(settings, country_code=country_code)
 
-    deep_link_suffix = f"{country_code}-" if country_code != "EG" else ""
-    deep_link = f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}{product_id}"
-
     logger.info("Reading sheet for %s", country_code)
     product = order_service.get_next_unpublished_product()
 
@@ -43,6 +40,10 @@ async def main() -> None:
         return
 
     logger.info("Product found for %s: %s", country_code, product_id)
+
+    deep_link_suffix = f"SAU_{product_id}" if country_code != "EG" else product_id
+    deep_link = f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}"
+    logger.info("Generated deep link: %s", deep_link)
 
     caption = f"""📦 {name}
 💰 السعر: {price} {country_config.currency_symbol}

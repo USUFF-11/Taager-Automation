@@ -39,8 +39,9 @@ async def publish_next_product(
 
     logger.info("Publishing product: %s", product_id)
 
-    deep_link_suffix = f"{country_config.code}-{product_id}" if country_config.code != "EG" else product_id
+    deep_link_suffix = f"SAU_{product_id}" if country_config.code != "EG" else product_id
     deep_link = f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}"
+    logger.info("Generated deep link: %s", deep_link)
 
     caption = f"""🛍 {name}
 
@@ -54,7 +55,7 @@ async def publish_next_product(
             [
                 InlineKeyboardButton(
                     "🛒 اطلب الآن",
-                    url=f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}",
+                    url=deep_link,
                 )
             ]
         ]

@@ -26,10 +26,23 @@ logger = logging.getLogger(__name__)
 PROVINCE_MATCH_THRESHOLD = 80
 
 
+COUNTRY_PREFIX_ALIASES = {
+    "SAU": "SA",
+}
+
+
+def _normalize_country_code(code: str) -> str:
+    code = code.upper()
+    return COUNTRY_PREFIX_ALIASES.get(code, code)
+
+
 def _parse_country_and_product_id(raw: str) -> tuple[str, str]:
-    parts = raw.split("-", 1)
-    if len(parts) == 2 and parts[0].upper() in COUNTRY_CONFIGS:
-        return parts[0].upper(), parts[1]
+    for sep in ("_", "-"):
+        parts = raw.split(sep, 1)
+        if len(parts) == 2:
+            normalized = _normalize_country_code(parts[0])
+            if normalized in COUNTRY_CONFIGS:
+                return normalized, parts[1]
     return "EG", raw
 
 
@@ -43,16 +56,22 @@ class OrderConversation:
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start a new ordering conversation from a deep link or command."""
-        logger.info("start handler received update")
-        args = context.args or []
-        raw_id = args[0] if args else None
-
         message = update.effective_message
+        user_id = update.effective_user.id if update.effective_user else None
+        msg_text = message.text if message else None
+        args = context.args or []
+
+        logger.info(
+            "=== START HANDLER === user_id=%s msg_text=%s context_args=%s update_id=%s",
+            user_id, msg_text, args, update.update_id,
+        )
+
         if message is None:
-            logger.warning("start handler received an update without an effective message")
+            logger.warning("start handler: no effective message")
             return ConversationHandler.END
 
-        logger.info("start args=%s message_text=%s", args, message.text if message else None)
+        raw_id = args[0] if args else None
+        logger.info("start raw_id=%s has_args=%s", raw_id, bool(args))
 
         if not raw_id:
             await message.reply_text(

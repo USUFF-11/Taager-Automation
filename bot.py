@@ -26,7 +26,7 @@ def main() -> None:
     # caused the command to be processed by two different paths and made the state flow
     # harder to reason about. Using only the conversation entry point avoids that conflict.
     app.add_handler(build_conversation_handler())
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
 if __name__ == "__main__":

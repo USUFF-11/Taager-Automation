@@ -33,7 +33,8 @@ def main() -> None:
 
     logger.info("Starting Telegram bot")
 
-    updater = Updater(token=token, update_queue=None)
+    bot = Bot(token=token)
+    updater = Updater(bot=bot, update_queue=None)
     updater.dispatcher.add_handler(build_conversation_handler())
     updater.start_polling(
         allowed_updates=Update.ALL_TYPES,

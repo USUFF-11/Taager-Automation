@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
+import time
 import uuid
 from typing import Any, Dict, Optional
 
@@ -58,14 +59,17 @@ class OrderConversation:
             logger.warning("start handler: no effective message")
             return ConversationHandler.END
 
-        last_id = context.user_data.get("_last_start_update_id")
-        if last_id == update.update_id:
-            logger.info("ignoring duplicate start update_id=%s", update.update_id)
-            return context.user_data.get("current_state", ConversationHandler.END)
-        context.user_data["_last_start_update_id"] = update.update_id
-
         raw_id = args[0] if args else None
         logger.info("start raw_id=%s has_args=%s", raw_id, bool(args))
+
+        last_raw_id = context.user_data.get("_last_start_raw_id")
+        last_time = context.user_data.get("_last_start_time", 0)
+        now = time.time()
+        if raw_id and raw_id == last_raw_id and (now - last_time) < 6:
+            logger.info("ignoring duplicate start raw_id=%s (within 6s)", raw_id)
+            return context.user_data.get("current_state", ConversationHandler.END)
+        context.user_data["_last_start_raw_id"] = raw_id
+        context.user_data["_last_start_time"] = now
 
         if not raw_id:
             await message.reply_text(

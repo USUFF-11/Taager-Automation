@@ -23,8 +23,8 @@ class Settings:
             "GOOGLE_CREDENTIALS_PATH", str(BASE_DIR / "credentials.json")
         ).strip()
         self.spreadsheet_name = os.getenv("GOOGLE_SPREADSHEET_NAME", "Taager").strip()
-        self.worksheet_name = os.getenv("GOOGLE_WORKSHEET_NAME", "Products").strip()
-        self.orders_worksheet_name = os.getenv("GOOGLE_ORDERS_WORKSHEET_NAME", "Orders").strip()
+        self.worksheet_name = os.getenv("GOOGLE_WORKSHEET_NAME", "Products_EG").strip()
+        self.orders_worksheet_name = os.getenv("GOOGLE_ORDERS_WORKSHEET_NAME", "Orders_EG").strip()
         self.markup_percent = float(os.getenv("DEFAULT_MARKUP_PERCENT", "20"))
         self.api_base_url = os.getenv(
             "TAAGER_API_BASE_URL",

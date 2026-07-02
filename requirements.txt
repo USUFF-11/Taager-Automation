@@ -1,0 +1,6 @@
+requests>=2.32.2
+urllib3>=2.2.0
+gspread>=6.1.2
+google-auth>=2.4.0
+python-dotenv>=1.0.1
+python-telegram-bot>=22.8

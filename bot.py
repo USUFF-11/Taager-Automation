@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import time
 
+import requests
 from telegram._update import Update
 from telegram.ext import Application, ContextTypes
 
@@ -20,13 +22,19 @@ def main() -> None:
     validate_settings(settings)
 
     logger.info("Starting Telegram bot")
-    app = Application.builder().token(settings.bot_token).build()
 
-    # The conversation handler owns /start. Keeping a separate top-level /start handler
-    # caused the command to be processed by two different paths and made the state flow
-    # harder to reason about. Using only the conversation entry point avoids that conflict.
+    # Force-close any stale getUpdates connections
+    token = settings.bot_token
+    resp = requests.post(
+        f"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=true",
+        timeout=10,
+    )
+    logger.info("deleteWebhook response: %s", resp.json())
+    time.sleep(2)
+
+    app = Application.builder().token(token).build()
     app.add_handler(build_conversation_handler())
-    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

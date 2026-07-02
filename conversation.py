@@ -104,10 +104,13 @@ class OrderConversation:
 
     @staticmethod
     def _check_update_dedup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-        last = context.user_data.get("_dedup_uid")
-        if last == update.update_id:
+        msg = update.effective_message
+        if msg is None:
+            return False
+        last = context.user_data.get("_dedup_msg_id")
+        if last == msg.message_id:
             return True
-        context.user_data["_dedup_uid"] = update.update_id
+        context.user_data["_dedup_msg_id"] = msg.message_id
         return False
 
     async def handle_name(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

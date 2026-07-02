@@ -329,5 +329,5 @@ def build_conversation_handler() -> ConversationHandler:
             ASK_FACEBOOK_LINK: [MessageHandler(filters.TEXT & ~filters.COMMAND, conversation.handle_facebook_link)],
         },
         fallbacks=[CommandHandler("cancel", conversation.cancel)],
-        allow_reentry=True,
+        allow_reentry=False,
     )

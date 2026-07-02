@@ -59,6 +59,10 @@ class OrderConversation:
             logger.warning("start handler: no effective message")
             return ConversationHandler.END
 
+        if self._check_update_dedup(update, context):
+            logger.info("start dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ConversationHandler.END)
+
         raw_id = args[0] if args else None
         logger.info("start raw_id=%s has_args=%s", raw_id, bool(args))
 
@@ -98,7 +102,18 @@ class OrderConversation:
         logger.info("Started order flow for product_id=%s country=%s", product_id, country_code)
         return ASK_NAME
 
+    @staticmethod
+    def _check_update_dedup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        last = context.user_data.get("_dedup_uid")
+        if last == update.update_id:
+            return True
+        context.user_data["_dedup_uid"] = update.update_id
+        return False
+
     async def handle_name(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_name dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_NAME)
         logger.info("handle_name received update")
         message = update.effective_message
         if message is None:
@@ -116,6 +131,9 @@ class OrderConversation:
         return ASK_PHONE
 
     async def handle_phone(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_phone dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_PHONE)
         logger.info("handle_phone received update")
         message = update.effective_message
         if message is None:
@@ -133,6 +151,9 @@ class OrderConversation:
         return ASK_PHONE2
 
     async def handle_phone2(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_phone2 dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_PHONE2)
         logger.info("handle_phone2 received update")
         message = update.effective_message
         if message is None:
@@ -146,6 +167,9 @@ class OrderConversation:
         return ASK_PROVINCE
 
     async def handle_province(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_province dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_PROVINCE)
         logger.info("handle_province received update")
         message = update.effective_message
         if message is None:
@@ -170,6 +194,9 @@ class OrderConversation:
         return ASK_ADDRESS
 
     async def handle_address(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_address dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_ADDRESS)
         logger.info("handle_address received update")
         message = update.effective_message
         if message is None:
@@ -187,6 +214,9 @@ class OrderConversation:
         return ASK_QUANTITY
 
     async def handle_quantity(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_quantity dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_QUANTITY)
         logger.info("handle_quantity received update")
         message = update.effective_message
         if message is None:
@@ -204,6 +234,9 @@ class OrderConversation:
         return ASK_NOTES
 
     async def handle_notes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_notes dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_NOTES)
         logger.info("handle_notes received update")
         message = update.effective_message
         if message is None:
@@ -217,6 +250,9 @@ class OrderConversation:
         return ASK_FACEBOOK_PAGE
 
     async def handle_facebook_page(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_facebook_page dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_FACEBOOK_PAGE)
         logger.info("handle_facebook_page received update")
         message = update.effective_message
         if message is None:
@@ -230,6 +266,9 @@ class OrderConversation:
         return ASK_FACEBOOK_LINK
 
     async def handle_facebook_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        if self._check_update_dedup(update, context):
+            logger.info("handle_facebook_link dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ASK_FACEBOOK_LINK)
         logger.info("handle_facebook_link received update")
         message = update.effective_message
         if message is None:
@@ -278,6 +317,9 @@ class OrderConversation:
 
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Cancel the current order conversation."""
+        if self._check_update_dedup(update, context):
+            logger.info("cancel dedup blocked update_id=%s", update.update_id)
+            return context.user_data.get("current_state", ConversationHandler.END)
         logger.info("cancel handler received update")
         message = update.effective_message
         if message is not None:

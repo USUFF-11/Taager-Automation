@@ -60,7 +60,11 @@ class OrderConversation:
 
         if not raw_id:
             await message.reply_text(
-                "يرجى استخدام الرابط من القناة أو إرسال /start <ProductID> للبدء."
+                "مرحباً بك في متجر تاجر! 🛍️\n\n"
+                "لطلب منتج، يرجى الذهاب إلى القناة @taagerstore\n"
+                "واختيار المنتج، ثم الضغط على زر 🛒 اطلب الآن.\n\n"
+                "أو يمكنك إرسال رقم المنتج مع /start\n"
+                "مثال: /start 12345"
             )
             return ConversationHandler.END
 

@@ -40,18 +40,21 @@ async def publish_next_product(
     logger.info("Publishing product: %s", product_id)
 
     deep_link_suffix = f"{country_config.code}-{product_id}" if country_config.code != "EG" else product_id
+    deep_link = f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}"
 
     caption = f"""🛍 {name}
 
 💰 السعر: {price} {country_config.currency_symbol}
 
-{country_config.shipping_text}"""
+{country_config.shipping_text}
+
+<a href="{deep_link}">🛒 اطلب الآن</a>"""
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
                     "🛒 اطلب الآن",
-                    url=f"tg://resolve?domain={country_config.bot_username}&start={deep_link_suffix}",
+                    url=f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}",
                 )
             ]
         ]

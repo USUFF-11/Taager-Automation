@@ -10,7 +10,7 @@ from telegram import (
 # ==========================
 # TELEGRAM
 # ==========================
-BOT_TOKEN = "8660875238:AAEsl_trHXsRvbw6iBOR2LCKpYeogZbAIHI"
+BOT_TOKEN = "8660875238:AAENpbeufWVFyC2_pamg_eAN1ygd7KTSPSE"
 CHANNEL_ID = "@taagerstore"
 
 # ==========================

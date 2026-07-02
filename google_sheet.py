@@ -111,14 +111,11 @@ class GoogleSheetService:
         """Ensure the worksheet begins with the exact required column headers."""
         try:
             values = self.worksheet.get_all_values()
-            if not values or values[0] != self.settings.required_columns:
+            header = values[0] if values else []
+            expected = self.settings.required_columns
+            if header[:len(expected)] != expected:
                 self.worksheet.batch_update(
-                    [
-                        {
-                            "range": "A1:K1",
-                            "values": [self.settings.required_columns],
-                        }
-                    ],
+                    [{"range": "A1:K1", "values": [expected]}],
                     value_input_option="RAW",
                 )
         except Exception as exc:

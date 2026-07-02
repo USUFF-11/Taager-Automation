@@ -47,7 +47,7 @@ class OrderService:
     def get_next_unpublished_product(self) -> Optional[Dict[str, Any]]:
         """Return the first product row whose Published At cell is empty."""
         worksheet = self._get_products_worksheet()
-        records = worksheet.get_all_records()
+        records = worksheet.get_all_records(expected_headers=self.settings.required_columns)
         for row in records:
             published_at = str(row.get("Published At", "") or "").strip()
             if not published_at:

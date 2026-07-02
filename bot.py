@@ -4,8 +4,9 @@ import logging
 import time
 
 import requests
+from telegram import Bot
 from telegram._update import Update
-from telegram.ext import Application, ContextTypes
+from telegram.ext import Application, ContextTypes, Updater
 
 from config import get_settings, validate_settings
 from conversation import build_conversation_handler
@@ -21,20 +22,29 @@ def main() -> None:
     settings = get_settings()
     validate_settings(settings)
 
-    logger.info("Starting Telegram bot")
-
-    # Force-close any stale getUpdates connections
     token = settings.bot_token
-    resp = requests.post(
-        f"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=true",
-        timeout=10,
+
+    # Forcefully close any existing connection
+    requests.get(
+        f"https://api.telegram.org/bot{token}/getUpdates?offset=-1&timeout=1&allowed_updates=[]",
+        timeout=5,
     )
-    logger.info("deleteWebhook response: %s", resp.json())
     time.sleep(2)
 
-    app = Application.builder().token(token).build()
-    app.add_handler(build_conversation_handler())
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    logger.info("Starting Telegram bot")
+
+    updater = Updater(token=token, update_queue=None)
+    updater.dispatcher.add_handler(build_conversation_handler())
+    updater.start_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,
+    )
+    logger.info("Bot is running")
+    updater.idle()
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":

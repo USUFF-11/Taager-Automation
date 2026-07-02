@@ -18,6 +18,9 @@ def main() -> None:
     country_config = get_country_config()
     country_code = country_config.code
 
+    print(f"Using sheet: {country_config.products_sheet}")
+    print(f"Spreadsheet: {settings.spreadsheet_name}")
+
     try:
         taager_client = TaagerAPIClient(settings, country_code=country_code)
         google_sheet_service = GoogleSheetService(settings, sheet_name=country_config.products_sheet)

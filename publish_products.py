@@ -41,7 +41,7 @@ async def main() -> None:
 
     logger.info("Product found for %s: %s", country_code, product_id)
 
-    deep_link_suffix = f"SAU_{product_id}" if country_code != "EG" else product_id
+    deep_link_suffix = f"{country_code}_{product_id}" if country_code != "EG" else product_id
     deep_link = f"https://t.me/{country_config.bot_username}?start={deep_link_suffix}"
     logger.info("Generated deep link: %s", deep_link)
 

@@ -26,23 +26,11 @@ logger = logging.getLogger(__name__)
 PROVINCE_MATCH_THRESHOLD = 80
 
 
-COUNTRY_PREFIX_ALIASES = {
-    "SAU": "SA",
-}
-
-
-def _normalize_country_code(code: str) -> str:
-    code = code.upper()
-    return COUNTRY_PREFIX_ALIASES.get(code, code)
-
-
 def _parse_country_and_product_id(raw: str) -> tuple[str, str]:
     for sep in ("_", "-"):
         parts = raw.split(sep, 1)
-        if len(parts) == 2:
-            normalized = _normalize_country_code(parts[0])
-            if normalized in COUNTRY_CONFIGS:
-                return normalized, parts[1]
+        if len(parts) == 2 and parts[0].upper() in COUNTRY_CONFIGS:
+            return parts[0].upper(), parts[1]
     return "EG", raw
 
 
